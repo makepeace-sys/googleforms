@@ -1,9 +1,7 @@
 """User Serializer"""
 
-# Datetime
+# Utilities
 from datetime import timedelta
-
-# JWT
 import jwt
 
 # Django
@@ -67,25 +65,26 @@ class UserSignUpSerializer(serializers.Serializer):
         return data
 
     def create(self, data):
+        """Handle user and profile creation."""
         data.pop('confirmation_password')
         user = User.objects.create_user(**data, is_admin=False, is_verify=False)
-        self.sending_email(user)
+        self.sending_confirmation_email(user)
         return user
 
-    def sending_email(self, user):
-        """Functions that sends the email verification."""
-        token = self.generate_token(user)
+    def sending_confirmation_email(self, user):
+        """Send account verification link to given user."""
+        verification_token = self.gen_verification_token(user)
         subject = f'Welcome ${user} verify your account to start School'
         from_email = 'Admin <noreply@forms.com>'
-        content = render_to_string(
-            'emails/user/email_verification.html',
-            {'token': token, 'user': user}
+        html_content = render_to_string(
+            'emails/user/account_verification.html',
+            {'token': verification_token, 'user': user}
         )
-        msg = EmailMultiAlternatives(subject, content, from_email, [user.email])
-        msg.attach_alternative(content, "text/html")
+        msg = EmailMultiAlternatives(subject, html_content, from_email, [user.email])
+        msg.attach_alternative(html_content, "text/html")
         msg.send()
 
-    def generate_token(self, user):
+    def gen_verification_token(self, user):
         """Function to generate the token"""
         exp_date = timezone.now() + timedelta(days=3)
         payload = {
@@ -94,7 +93,6 @@ class UserSignUpSerializer(serializers.Serializer):
             'type': 'email_confirmation'
         }
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-
         return token.decode()
 
 
@@ -124,28 +122,25 @@ class UserLoginSerializer(serializers.Serializer):
         return self.context['user'], token[0].key
 
 
-class UserAccountVerificationSerializer(serializers.Serializer):
-    """User Account verification by token
-    """
+class AccountVerificationSerializer(serializers.Serializer):
+    """Account verification serializer."""
     token = serializers.CharField()
 
-    def validate_token(self, data):
-        """Validate token
-        here we validate that the token is correct and it is valid
-        """
+    def validate(self, data):
+        """Verify token is valid."""
         try:
             payload = jwt.decode(data, settings.SECRET_KEY, algorithms=['HS256'])
         except jwt.ExpiredSignature:
-            raise serializers.ValidationError('verification link has expired')
+            raise serializers.ValidationError('Verification link has expired')
         except jwt.PyJWTError:
-            raise serializers.ValidationError('Invalid Token')
+            raise serializers.ValidationError('Invalid credentials')
         if payload['type'] != 'email_confirmation':
-            raise serializers.ValidationError('Invalid Token')
+            raise serializers.ValidationError('Account us not active yet :(')
 
         self.context['payload'] = payload
 
     def save(self):
-        """Update the verification status in user"""
+        """Update user's verified status."""
         
         payload = self.context['payload']
         user = User.objects.get(username=payload['user'])

@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from api.serializers import (UserSignUpSerializer,
                              UserModelSerializer,
                              UserLoginSerializer,
-                             UserAccountVerificationSerializer
+                             AccountVerificationSerializer
                              )
 
 
@@ -51,7 +51,7 @@ class UserViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'])
     def verification(self, request):
         """Handle the request of email verification."""
-        serializer = UserAccountVerificationSerializer(data=request.data)
+        serializer = AccountVerificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         data = {
