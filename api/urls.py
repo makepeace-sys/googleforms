@@ -12,9 +12,6 @@ from api import viewsets
 
 router = DefaultRouter()
 router.register(r'users', viewset=UserViewSet, basename='user')
-# router.register(r'persons', viewset=PersonModelViewSet, basename='person')
-# router.register(r'forms', viewset=FormModelViewSet, basename='form')
-
 
 urlpatterns = [
     path('api/v1/', include(router.urls)),
